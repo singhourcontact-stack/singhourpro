@@ -24,10 +24,11 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 20,
-    fontWeight: 600,
+    fontWeight: "600", // ✅ string
   },
   link: {
     marginTop: 15,
     paddingVertical: 15,
   },
 });
+

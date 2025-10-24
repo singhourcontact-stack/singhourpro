@@ -1,62 +1,100 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TextInput, 
-  TouchableOpacity, 
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
   ScrollView,
-  Alert 
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { ArrowLeft, CreditCard, Lock, Calendar } from 'lucide-react-native';
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { ArrowLeft, CreditCard, FileText } from "lucide-react-native";
+import { supabase } from "@/lib/supabase"; // ✅ ton client supabase
+import { useAuth } from "@/contexts/AuthContext"; // ✅ hook pour récupérer l'user connecté
 
 export default function PaymentScreen() {
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [cvv, setCvv] = useState('');
-  const [cardHolder, setCardHolder] = useState('');
-  const [amount] = useState('250'); // Montant simulé
-  const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
   const router = useRouter();
 
-  const formatCardNumber = (text: string) => {
-    const cleaned = text.replace(/\s/g, '');
-    const formatted = cleaned.replace(/(.{4})/g, '$1 ').trim();
-    return formatted.substring(0, 19);
-  };
+  const [iban, setIban] = useState("");
+  const [bic, setBic] = useState("");
+  const [paypalEmail, setPaypalEmail] = useState("");
+  const [fiscalName, setFiscalName] = useState("");
+  const [fiscalAddress, setFiscalAddress] = useState("");
+  const [fiscalNumber, setFiscalNumber] = useState("");
 
-  const formatExpiryDate = (text: string) => {
-    const cleaned = text.replace(/\D/g, '');
-    if (cleaned.length >= 2) {
-      return cleaned.substring(0, 2) + '/' + cleaned.substring(2, 4);
+  const [loading, setLoading] = useState(false);
+
+  // Charger les infos existantes depuis Supabase
+  useEffect(() => {
+    const fetchPaymentInfos = async () => {
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("payment_infos")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error && error.code !== "PGRST116") {
+        console.error(error);
+        Alert.alert("Erreur", "Impossible de charger vos informations.");
+      }
+
+      if (data) {
+        setIban(data.iban || "");
+        setBic(data.bic || "");
+        setPaypalEmail(data.paypal_email || "");
+        setFiscalName(data.fiscal_name || "");
+        setFiscalAddress(data.fiscal_address || "");
+        setFiscalNumber(data.fiscal_number || "");
+      }
+    };
+
+    fetchPaymentInfos();
+  }, [user]);
+
+  // Sauvegarder ou mettre à jour
+  const handleSave = async () => {
+    if (!user) {
+      Alert.alert("Erreur", "Vous devez être connecté.");
+      return;
     }
-    return cleaned;
-  };
 
-  const handlePayment = async () => {
-    if (!cardNumber || !expiryDate || !cvv || !cardHolder) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs');
+    if (!iban && !paypalEmail) {
+      Alert.alert("Erreur", "Veuillez renseigner au moins un moyen de paiement.");
       return;
     }
 
     setLoading(true);
-    
-    // Simulation d'un paiement (remplacer par un vrai provider plus tard)
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert(
-        'Paiement réussi',
-        `Votre paiement de ${amount}€ a été traité avec succès.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back(),
-          },
-        ]
-      );
-    }, 2000);
+
+    const { error } = await supabase.from("payment_infos").upsert(
+      {
+        user_id: user.id,
+        iban,
+        bic,
+        paypal_email: paypalEmail,
+        fiscal_name: fiscalName,
+        fiscal_address: fiscalAddress,
+        fiscal_number: fiscalNumber,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+
+    setLoading(false);
+
+    if (error) {
+      console.error(error);
+      Alert.alert("Erreur", "Impossible d’enregistrer vos informations.");
+    } else {
+      Alert.alert("Succès", "Vos informations de paiement ont été mises à jour.", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+    }
   };
 
   return (
@@ -67,103 +105,108 @@ export default function PaymentScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <ArrowLeft size={24} color="#ffffff" />
           </TouchableOpacity>
-          <Text style={styles.title}>Paiement</Text>
+          <Text style={styles.title}>Informations de paiement</Text>
           <View style={{ width: 24 }} />
         </View>
 
-        {/* Amount */}
-        <View style={styles.amountSection}>
-          <Text style={styles.amountLabel}>Montant à payer</Text>
-          <Text style={styles.amountValue}>{amount}€</Text>
-        </View>
-
-        {/* Payment Form */}
+        {/* Section Paiement */}
         <View style={styles.form}>
-          <Text style={styles.sectionTitle}>Informations de paiement</Text>
+          <Text style={styles.sectionTitle}>Moyens de paiement</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Numéro de carte</Text>
+            <Text style={styles.label}>IBAN</Text>
             <View style={styles.inputWrapper}>
               <CreditCard size={20} color="#666666" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                value={cardNumber}
-                onChangeText={(text) => setCardNumber(formatCardNumber(text))}
-                placeholder="1234 5678 9012 3456"
+                value={iban}
+                onChangeText={setIban}
+                placeholder="FR76 3000 6000 ..."
                 placeholderTextColor="#666666"
-                keyboardType="numeric"
-                maxLength={19}
+                autoCapitalize="characters"
               />
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-              <Text style={styles.label}>Date d'expiration</Text>
-              <View style={styles.inputWrapper}>
-                <Calendar size={20} color="#666666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={expiryDate}
-                  onChangeText={(text) => setExpiryDate(formatExpiryDate(text))}
-                  placeholder="MM/AA"
-                  placeholderTextColor="#666666"
-                  keyboardType="numeric"
-                  maxLength={5}
-                />
-              </View>
-            </View>
-
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
-              <Text style={styles.label}>CVV</Text>
-              <View style={styles.inputWrapper}>
-                <Lock size={20} color="#666666" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={cvv}
-                  onChangeText={setCvv}
-                  placeholder="123"
-                  placeholderTextColor="#666666"
-                  keyboardType="numeric"
-                  maxLength={3}
-                  secureTextEntry
-                />
-              </View>
             </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Nom du titulaire</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                style={[styles.input, { paddingLeft: 16 }]}
-                value={cardHolder}
-                onChangeText={setCardHolder}
-                placeholder="Jean Dupont"
-                placeholderTextColor="#666666"
-                autoCapitalize="words"
-              />
-            </View>
+            <Text style={styles.label}>BIC</Text>
+            <TextInput
+              style={styles.input}
+              value={bic}
+              onChangeText={setBic}
+              placeholder="AGRIFRPPXXX"
+              placeholderTextColor="#666666"
+              autoCapitalize="characters"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email PayPal</Text>
+            <TextInput
+              style={styles.input}
+              value={paypalEmail}
+              onChangeText={setPaypalEmail}
+              placeholder="exemple@paypal.com"
+              placeholderTextColor="#666666"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
           </View>
         </View>
 
-        {/* Security Info */}
-        <View style={styles.securityInfo}>
-          <Lock size={16} color="#00C851" />
-          <Text style={styles.securityText}>
-            Vos informations de paiement sont sécurisées et cryptées
-          </Text>
+        {/* Section Fiscale */}
+        <View style={styles.form}>
+          <Text style={styles.sectionTitle}>Informations fiscales</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Nom fiscal</Text>
+            <View style={styles.inputWrapper}>
+              <FileText size={20} color="#666666" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={fiscalName}
+                onChangeText={setFiscalName}
+                placeholder="Jean Dupont"
+                placeholderTextColor="#666666"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Adresse fiscale</Text>
+            <TextInput
+              style={styles.input}
+              value={fiscalAddress}
+              onChangeText={setFiscalAddress}
+              placeholder="10 rue de Paris, 75000 Paris"
+              placeholderTextColor="#666666"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Numéro fiscal</Text>
+            <TextInput
+              style={styles.input}
+              value={fiscalNumber}
+              onChangeText={setFiscalNumber}
+              placeholder="123456789"
+              placeholderTextColor="#666666"
+              keyboardType="numeric"
+            />
+          </View>
         </View>
 
-        {/* Payment Button */}
+        {/* Bouton Sauvegarde */}
         <TouchableOpacity
-          style={[styles.payButton, loading && styles.payButtonDisabled]}
-          onPress={handlePayment}
+          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          onPress={handleSave}
           disabled={loading}
         >
-          <Text style={styles.payButtonText}>
-            {loading ? 'Traitement...' : `Payer ${amount}€`}
-          </Text>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveButtonText}>Enregistrer</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -173,43 +216,26 @@ export default function PaymentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  amountSection: {
-    alignItems: 'center',
-    padding: 30,
-    backgroundColor: '#1a1a1a',
-    margin: 20,
-    borderRadius: 16,
-  },
-  amountLabel: {
-    fontSize: 14,
-    color: '#666666',
-    marginBottom: 8,
-  },
-  amountValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ff3b3b',
+    fontWeight: "bold",
+    color: "#ffffff",
   },
   form: {
     padding: 20,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontWeight: "600",
+    color: "#ffffff",
     marginBottom: 20,
   },
   inputGroup: {
@@ -217,17 +243,17 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#ffffff',
+    fontWeight: "500",
+    color: "#ffffff",
     marginBottom: 8,
   },
   inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1a1a1a",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: "#2a2a2a",
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
@@ -237,38 +263,26 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#ffffff',
+    color: "#ffffff",
+    backgroundColor: "#1a1a1a",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  row: {
-    flexDirection: 'row',
-  },
-  securityInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 30,
-  },
-  securityText: {
-    fontSize: 12,
-    color: '#00C851',
-    marginLeft: 8,
-    textAlign: 'center',
-  },
-  payButton: {
-    backgroundColor: '#ff3b3b',
+  saveButton: {
+    backgroundColor: "#ff3b3b",
     borderRadius: 12,
     paddingVertical: 18,
     marginHorizontal: 20,
-    alignItems: 'center',
-    marginBottom: 20,
+    alignItems: "center",
+    marginBottom: 40,
   },
-  payButtonDisabled: {
+  saveButtonDisabled: {
     opacity: 0.6,
   },
-  payButtonText: {
-    color: '#ffffff',
+  saveButtonText: {
+    color: "#ffffff",
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

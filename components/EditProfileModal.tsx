@@ -7,9 +7,12 @@ import {
   TextInput, 
   TouchableOpacity, 
   ScrollView,
-  Alert 
+  Alert,
+  Switch
 } from 'react-native';
 import { X } from 'lucide-react-native';
+import { Picker } from '@react-native-picker/picker';
+import { supabase } from '@/lib/supabase';
 
 interface EditProfileModalProps {
   visible: boolean;
@@ -24,13 +27,15 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   profile, 
   onSave 
 }) => {
-  const [name, setName] = useState(profile.name);
-  const [email, setEmail] = useState(profile.email);
-  const [phone, setPhone] = useState(profile.phone);
-  const [address, setAddress] = useState(profile.address);
-  const [bio, setBio] = useState(profile.bio);
+  const [name, setName] = useState(profile.name || '');
+  const [email, setEmail] = useState(profile.email || '');
+  const [phone, setPhone] = useState(profile.phone || '');
+  const [address, setAddress] = useState(profile.address || '');
+  const [bio, setBio] = useState(profile.bio || '');
+  const [type, setType] = useState(profile.type || 'studio');
+  const [isOnline, setIsOnline] = useState(profile.is_online || false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name || !email || !phone) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs obligatoires');
       return;
@@ -43,11 +48,25 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       phone,
       address,
       bio,
+      type,
+      is_online: isOnline,
     };
 
-    onSave(updatedProfile);
-    onClose();
-    Alert.alert('Succès', 'Profil mis à jour avec succès');
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(updatedProfile)
+        .eq('id', profile.id);
+
+      if (error) throw error;
+
+      onSave(updatedProfile);
+      onClose();
+      Alert.alert('Succès', 'Profil mis à jour avec succès');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Erreur', 'Impossible de mettre à jour le profil');
+    }
   };
 
   return (
@@ -61,6 +80,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
         </View>
 
         <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+          {/* Nom */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nom du studio / service *</Text>
             <TextInput
@@ -72,6 +92,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             />
           </View>
 
+          {/* Email */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email *</Text>
             <TextInput
@@ -85,6 +106,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             />
           </View>
 
+          {/* Téléphone */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Téléphone *</Text>
             <TextInput
@@ -97,6 +119,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             />
           </View>
 
+          {/* Adresse */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Adresse</Text>
             <TextInput
@@ -108,6 +131,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             />
           </View>
 
+          {/* Description */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Description</Text>
             <TextInput
@@ -119,6 +143,37 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               multiline
               numberOfLines={4}
             />
+          </View>
+
+          {/* Type de professionnel */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Type de professionnel</Text>
+            <View style={{ backgroundColor: '#1a1a1a', borderRadius: 8 }}>
+              <Picker
+                selectedValue={type}
+                dropdownIconColor="#fff"
+                style={{ color: '#fff' }}
+                onValueChange={(itemValue) => setType(itemValue)}
+              >
+                <Picker.Item label="Studio" value="studio" />
+                <Picker.Item label="Photographe" value="photographe" />
+                <Picker.Item label="Réalisateur vidéo" value="realisateur" />
+              </Picker>
+            </View>
+          </View>
+
+          {/* Disponibilité */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Disponibilité</Text>
+            <Switch
+              value={isOnline}
+              onValueChange={setIsOnline}
+              trackColor={{ false: '#666', true: '#ff3b3b' }}
+              thumbColor={isOnline ? '#fff' : '#888'}
+            />
+            <Text style={{ color: '#fff', marginTop: 5 }}>
+              {isOnline ? '🟢 En ligne' : '🔴 Hors ligne'}
+            </Text>
           </View>
         </ScrollView>
 

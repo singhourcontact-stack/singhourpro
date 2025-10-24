@@ -1,52 +1,70 @@
-import { useEffect } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from "react";
+import { View, StyleSheet, Text } from "react-native";
+import { useRouter } from "expo-router";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function IndexScreen() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, profile, loading, initialized } = useAuth();
 
   useEffect(() => {
-    console.log('IndexScreen: useEffect triggered', { user: !!user, loading });
-    
-    // Force redirect after 3 seconds if still loading
-    const timeout = setTimeout(() => {
-      console.log('IndexScreen: Forcing redirect due to timeout');
-      router.replace('/login');
-    }, 3000);
+    console.log("IndexScreen ▶ useEffect start", {
+      timestamp: new Date().toISOString(),
+      user: !!user,
+      profile,
+      loading,
+      initialized,
+    });
 
-    if (!loading) {
-      clearTimeout(timeout);
-      if (!user) {
-        // User is not signed in, redirect to login
-        console.log('IndexScreen: Redirecting to login');
-        router.replace('/login');
-      } else {
-        // User is signed in, redirect to tabs
-        console.log('IndexScreen: Redirecting to tabs');
-        router.replace('/(tabs)');
-      }
+    // Si pas initialisé => attendre (trace pour debug)
+    if (!initialized) {
+      console.log("IndexScreen ▶ waiting for initialization...");
+      return;
     }
 
-    return () => clearTimeout(timeout);
-  }, [user, loading, router]);
+    // Procéder seulement après initialisation
+    (async () => {
+      try {
+        console.log("IndexScreen ▶ initialization done, evaluating route...");
+        // trace d'état juste avant décision
+        console.log("IndexScreen ▶ state", { user: !!user, profile, loading });
 
-  if (loading) {
-    console.log('IndexScreen: Showing loading screen');
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>SINGHOUR'S</Text>
-        <Text style={styles.subtitle}>Chargement...</Text>
-      </View>
-    );
-  }
+        if (!loading) {
+          if (!user) {
+            console.log("IndexScreen ▶ redirect -> /login");
+            await router.replace("/login");
+            console.log("IndexScreen ▶ router.replace('/login') called");
+          } else if (!profile) {
+            console.log("IndexScreen ▶ user present but no profile -> redirect -> /(tabs)");
+            await router.replace("/(tabs)");
+            console.log("IndexScreen ▶ router.replace('/(tabs)') called (profile setup)");
+          } else {
+            console.log("IndexScreen ▶ user + profile -> redirect -> /(tabs)");
+            await router.replace("/(tabs)");
+            console.log("IndexScreen ▶ router.replace('/(tabs)') called (main tabs)");
+          }
+        } else {
+          console.log("IndexScreen ▶ still loading data, staying on splash");
+        }
+      } catch (err) {
+        console.error("IndexScreen ▶ error during routing decision", err);
+      } finally {
+        console.log("IndexScreen ▶ useEffect end", { timestamp: new Date().toISOString() });
+      }
+    })();
+  }, [user, profile, loading, initialized, router]);
 
-  console.log('IndexScreen: Should not reach here - showing fallback');
+  // Écran de splash/chargement
   return (
     <View style={styles.container}>
       <Text style={styles.loadingText}>SINGHOUR'S</Text>
-      <Text style={styles.subtitle}>Chargement...</Text>
+      <Text style={styles.subtitle}>
+        {!initialized
+          ? "Initialisation..."
+          : loading
+          ? "Chargement..."
+          : "Redirection..."}
+      </Text>
     </View>
   );
 }
@@ -54,20 +72,20 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#000000",
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ff3b3b',
+    fontWeight: "bold",
+    color: "#ff3b3b",
     letterSpacing: 2,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: '#ffffff',
-    fontWeight: '500',
+    color: "#ffffff",
+    fontWeight: "500",
   },
 });

@@ -5,12 +5,13 @@ import {
   Modal, 
   StyleSheet, 
   TextInput, 
-  TouchableOpacity, 
   ScrollView,
   Image,
-  Alert 
+  Alert,
+  Platform,
+  Pressable
 } from 'react-native';
-import { X, Camera, Plus } from 'lucide-react-native';
+import { X, Camera } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 interface AddOfferModalProps {
@@ -65,9 +66,9 @@ export const AddOfferModal: React.FC<AddOfferModalProps> = ({ visible, onClose }
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Ajouter une Offre</Text>
-          <TouchableOpacity onPress={onClose}>
+          <Pressable onPress={onClose}>
             <X size={24} color="#ffffff" />
-          </TouchableOpacity>
+          </Pressable>
         </View>
 
         <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
@@ -109,22 +110,22 @@ export const AddOfferModal: React.FC<AddOfferModalProps> = ({ visible, onClose }
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Photos</Text>
-            <TouchableOpacity style={styles.imagePickerButton} onPress={pickImage}>
+            <Pressable style={styles.imagePickerButton} onPress={pickImage}>
               <Camera size={24} color="#ff3b3b" />
               <Text style={styles.imagePickerText}>Ajouter des photos</Text>
-            </TouchableOpacity>
+            </Pressable>
 
             {images.length > 0 && (
               <View style={styles.imagesGrid}>
                 {images.map((uri, index) => (
                   <View key={index} style={styles.imageContainer}>
                     <Image source={{ uri }} style={styles.image} />
-                    <TouchableOpacity 
+                    <Pressable 
                       style={styles.removeImageButton}
                       onPress={() => removeImage(index)}
                     >
                       <X size={16} color="#ffffff" />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 ))}
               </View>
@@ -133,12 +134,12 @@ export const AddOfferModal: React.FC<AddOfferModalProps> = ({ visible, onClose }
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+          <Pressable style={styles.cancelButton} onPress={onClose}>
             <Text style={styles.cancelButtonText}>Annuler</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          </Pressable>
+          <Pressable style={styles.saveButton} onPress={handleSave}>
             <Text style={styles.saveButtonText}>Publier l'offre</Text>
-          </TouchableOpacity>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -188,7 +189,10 @@ const styles = StyleSheet.create({
   },
   textArea: {
     height: 100,
-    textAlignVertical: 'top',
+    ...(Platform.OS === 'android'
+      ? { textAlignVertical: 'top' }   // ✅ Android
+      : { verticalAlign: 'top' }       // ✅ iOS & Web
+    ),
   },
   imagePickerButton: {
     flexDirection: 'row',
