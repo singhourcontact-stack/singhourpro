@@ -1,0 +1,9 @@
+npx expo start --tunnel
+
+
+npx expo start -c
+
+
+
+
+ cd "D:/SINGHOURPRO"

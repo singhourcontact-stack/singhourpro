@@ -1,0 +1,78 @@
+working_hours table 
+
+[
+  {
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "professional_id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "day_of_week",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "start_time",
+    "data_type": "time without time zone"
+  },
+  {
+    "column_name": "end_time",
+    "data_type": "time without time zone"
+  },
+  {
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  }
+]
+
+
+// blocked_dates table 
+
+[
+  {
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "professional_id",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "date",
+    "data_type": "date"
+  },
+  {
+    "column_name": "time_slots",
+    "data_type": "ARRAY"
+  },
+  {
+    "column_name": "reason",
+    "data_type": "text"
+  },
+  {
+    "column_name": "created_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "updated_at",
+    "data_type": "timestamp with time zone"
+  }
+]
+
+// services table
+
+-- Check services table structure
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'services' 
+ORDER BY ordinal_position;
