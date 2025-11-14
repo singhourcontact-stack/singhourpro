@@ -27,6 +27,7 @@ export default function PaymentScreen() {
   const { user } = useAuth();
   const router = useRouter();
 
+  const [rib, setRib] = useState("");
   const [iban, setIban] = useState("");
   const [bic, setBic] = useState("");
   const [paypalEmail, setPaypalEmail] = useState("");
@@ -47,6 +48,7 @@ export default function PaymentScreen() {
         const paymentInfo = await getPaymentInfo(user.id);
         
         if (paymentInfo) {
+          setRib(paymentInfo.rib || "");
           setIban(paymentInfo.iban || "");
           setBic(paymentInfo.bic || "");
           setPaypalEmail(paymentInfo.paypal_email || "");
@@ -115,8 +117,8 @@ export default function PaymentScreen() {
       return;
     }
 
-    if (!iban && !paypalEmail) {
-      Alert.alert("Erreur", "Veuillez renseigner au moins un moyen de paiement.");
+    if (!rib && !iban && !paypalEmail) {
+      Alert.alert("Erreur", "Veuillez renseigner au moins un moyen de paiement (RIB, IBAN ou PayPal).");
       return;
     }
 
@@ -124,7 +126,8 @@ export default function PaymentScreen() {
 
     try {
       const success = await savePaymentInfo({
-        user_id: user.id,
+        pro_id: user.id,
+        rib,
         iban,
         bic,
         paypal_email: paypalEmail,
@@ -162,6 +165,21 @@ export default function PaymentScreen() {
         {/* Section Paiement */}
         <View style={styles.form}>
           <Text style={styles.sectionTitle}>Moyens de paiement</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>RIB (Optionnel)</Text>
+            <View style={styles.inputWrapper}>
+              <CreditCard size={20} color="#666666" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={rib}
+                onChangeText={setRib}
+                placeholder="12345 67890 12345678901 12"
+                placeholderTextColor="#666666"
+                autoCapitalize="characters"
+              />
+            </View>
+          </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>IBAN</Text>

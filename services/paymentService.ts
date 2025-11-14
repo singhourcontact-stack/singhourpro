@@ -2,7 +2,8 @@ import { supabase } from '@/lib/supabase';
 
 export interface PaymentInfo {
   id?: string;
-  user_id: string;
+  pro_id: string;
+  rib?: string;
   iban?: string;
   bic?: string;
   paypal_email?: string;
@@ -31,7 +32,7 @@ export async function getPaymentInfo(userId: string): Promise<PaymentInfo | null
     const { data, error } = await supabase
       .from('payment_infos')
       .select('*')
-      .eq('user_id', userId)
+      .eq('pro_id', userId)
       .single();
 
     if (error && error.code !== 'PGRST116') {
@@ -56,7 +57,7 @@ export async function savePaymentInfo(paymentInfo: Partial<PaymentInfo>): Promis
       .upsert({
         ...paymentInfo,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+      }, { onConflict: 'pro_id' });
 
     if (error) throw error;
     return true;
@@ -86,7 +87,7 @@ export async function connectPayPalAccount(userId: string, paypalEmail: string):
 
     // Update payment info with PayPal connection
     const success = await savePaymentInfo({
-      user_id: userId,
+      pro_id: userId,
       paypal_email: paypalEmail,
       paypal_connected: true,
     });
@@ -136,7 +137,7 @@ async function validatePayPalAccount(email: string): Promise<{ valid: boolean; a
 export async function disconnectPayPalAccount(userId: string): Promise<boolean> {
   try {
     const success = await savePaymentInfo({
-      user_id: userId,
+      pro_id: userId,
       paypal_connected: false,
       paypal_email: null,
     });
