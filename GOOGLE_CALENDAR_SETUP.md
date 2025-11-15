@@ -56,31 +56,45 @@ Update `app.json` with your Google Calendar Client ID:
 
 **Critical Note:** The OAuth token exchange step requires your **Client Secret**, which **must never be exposed to the client**. 
 
+### ✅ Backend Solution Provided
+
+I've created a complete backend implementation for you! See `backend/` directory for:
+- **Node.js/Express backend** (`backend/google-calendar-token.js`)
+- **Supabase Edge Function** (`supabase/functions/google-calendar-token/index.ts`)
+- **Full setup instructions** (`backend/README.md`)
+
+### Quick Backend Setup:
+
+1. **Choose your backend option:**
+   - Node.js/Express (in `backend/` folder)
+   - Supabase Edge Functions (in `supabase/functions/`)
+
+2. **Deploy the backend:**
+   - See `backend/README.md` for detailed deployment instructions
+   - Options: Vercel, Railway, Heroku, or Supabase
+
+3. **Add backend URL to app.json:**
+
+   **For Node.js/Express backend:**
+   ```json
+   "googleCalendarBackendUrl": "https://your-backend.vercel.app"
+   ```
+
+   **For Supabase Edge Functions:**
+   ```json
+   "googleCalendarBackendUrl": "https://your-project.supabase.co/functions/v1"
+   ```
+   
+   Then update `services/googleCalendarService.ts` line 179 to use:
+   ```typescript
+   const response = await fetch(`${config.backendUrl}/google-calendar-token`, {
+   ```
+   (without `/api/google-calendar/token`)
+
 ### Current Implementation:
 - ✅ OAuth flow starts in the app
 - ✅ User authenticates with Google
-- ⚠️ Token exchange requires backend endpoint
-
-### Solution Options:
-
-#### Option 1: Backend Proxy (Recommended for Production)
-Create a backend endpoint to handle token exchange:
-
-```javascript
-// Backend endpoint: POST /api/google-calendar/token
-// Body: { code, redirect_uri }
-// Returns: { access_token, refresh_token }
-
-// Then update googleCalendarService.ts to call your backend:
-const response = await fetch('YOUR_BACKEND_URL/api/google-calendar/token', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ code, redirect_uri }),
-});
-```
-
-#### Option 2: Use Expo AuthSession (Alternative)
-For Expo apps, you could use `expo-auth-session` which handles token exchange differently.
+- ✅ Token exchange via backend endpoint (ready to use!)
 
 ---
 

@@ -47,7 +47,8 @@
       "stripePublishableKey": "",
       "stripeSecretKey": "",
       "googleCalendarClientId": "",
-      "googleCalendarEnvironment": "production"
+      "googleCalendarEnvironment": "production",
+      "googleCalendarBackendUrl": ""
     },
     "runtimeVersion": "1.0.0",
     "updates": {

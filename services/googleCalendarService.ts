@@ -9,6 +9,7 @@ const getGoogleCalendarConfig = () => {
   return {
     clientId: config.googleCalendarClientId || process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_CLIENT_ID || '',
     environment: config.googleCalendarEnvironment || 'production',
+    backendUrl: config.googleCalendarBackendUrl || process.env.EXPO_PUBLIC_GOOGLE_CALENDAR_BACKEND_URL || '',
   };
 };
 
@@ -163,47 +164,59 @@ async function exchangeCodeForToken(code: string, redirectUri: string): Promise<
     //   body: JSON.stringify({ code, redirect_uri: redirectUri }),
     // });
     
-    // TODO: Replace with backend endpoint call
-    // This requires Client Secret which MUST be on backend
-    // See GOOGLE_CALENDAR_SETUP.md for backend implementation example
+    const config = getGoogleCalendarConfig();
     
-    return {
-      success: false,
-      error: 'Token exchange requires backend endpoint. Please set up POST /api/google-calendar/token endpoint. See GOOGLE_CALENDAR_SETUP.md for details.',
-    };
-    
-    /* Backend endpoint example (Node.js/Express):
-    
-    app.post('/api/google-calendar/token', async (req, res) => {
-      const { code, redirect_uri } = req.body;
-      const response = await fetch(GOOGLE_TOKEN_URL, {
+    // Check if backend URL is configured
+    if (!config.backendUrl) {
+      return {
+        success: false,
+        error: 'Backend URL not configured. Please set googleCalendarBackendUrl in app.json. See GOOGLE_CALENDAR_SETUP.md for details.',
+      };
+    }
+
+    try {
+      // Determine endpoint URL based on backend type
+      // Supabase Edge Functions: https://project.supabase.co/functions/v1
+      // Regular backend: https://your-backend.com
+      const isSupabaseFunction = config.backendUrl.includes('supabase.co/functions');
+      const endpointUrl = isSupabaseFunction
+        ? `${config.backendUrl}/google-calendar-token`
+        : `${config.backendUrl}/api/google-calendar/token`;
+
+      // Call backend endpoint for token exchange
+      const response = await fetch(endpointUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           code,
-          client_id: process.env.GOOGLE_CLIENT_ID,
-          client_secret: process.env.GOOGLE_CLIENT_SECRET, // ⚠️ Backend only!
-          redirect_uri,
-          grant_type: 'authorization_code',
-        }).toString(),
+          redirect_uri: redirectUri,
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        return {
+          success: false,
+          error: errorData.message || errorData.error || 'Token exchange failed',
+        };
+      }
+
       const tokenData = await response.json();
-      res.json(tokenData);
-    });
-    
-    Then update this function to call your backend:
-    const response = await fetch('YOUR_BACKEND_URL/api/google-calendar/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, redirect_uri: redirectUri }),
-    });
-    const tokenData = await response.json();
-    return {
-      success: true,
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-    };
-    */
+      
+      return {
+        success: true,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+      };
+    } catch (fetchError: any) {
+      console.error('Error calling backend token exchange:', fetchError);
+      return {
+        success: false,
+        error: `Backend connection failed: ${fetchError.message || 'Unable to reach backend endpoint'}`,
+      };
+    }
   } catch (error: any) {
     console.error('Error exchanging code for token:', error);
     return { success: false, error: error.message || 'Token exchange failed' };

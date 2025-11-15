@@ -1,0 +1,21 @@
+{
+  "name": "google-calendar-token-backend",
+  "version": "1.0.0",
+  "description": "Backend endpoint for Google Calendar OAuth token exchange",
+  "main": "google-calendar-token.js",
+  "scripts": {
+    "start": "node google-calendar-token.js",
+    "dev": "nodemon google-calendar-token.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+
