@@ -22,10 +22,11 @@ interface AddOfferModalProps {
 }
 
 export const AddOfferModal: React.FC<AddOfferModalProps> = ({ visible, onClose }) => {
-  const { user } = useAuth(); // ✅ Récupération de l’utilisateur (professional)
+  const { user } = useAuth(); // ✅ Récupération de l'utilisateur (professional)
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
+  const [duration, setDuration] = useState('1h'); // Default duration
   const [images, setImages] = useState<string[]>([]);
 
   const pickImage = async () => {
@@ -45,7 +46,7 @@ export const AddOfferModal: React.FC<AddOfferModalProps> = ({ visible, onClose }
   };
 
   const handleSave = async () => {
-    if (!title || !description || !price) {
+    if (!title || !description || !price || !duration) {
       Alert.alert('Erreur', 'Veuillez remplir tous les champs');
       return;
     }
@@ -63,6 +64,7 @@ export const AddOfferModal: React.FC<AddOfferModalProps> = ({ visible, onClose }
           title,
           description,
           price: parseFloat(price),
+          duration: duration || '1h', // Default to 1h if not provided
           images,
           is_active: true,
           created_at: new Date().toISOString(),
@@ -79,6 +81,7 @@ export const AddOfferModal: React.FC<AddOfferModalProps> = ({ visible, onClose }
       setTitle('');
       setDescription('');
       setPrice('');
+      setDuration('1h');
       setImages([]);
     } catch (error) {
       console.error('Erreur insertion offre:', error);
@@ -130,6 +133,17 @@ export const AddOfferModal: React.FC<AddOfferModalProps> = ({ visible, onClose }
               placeholder="250"
               placeholderTextColor="#666666"
               keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Durée</Text>
+            <TextInput
+              style={styles.input}
+              value={duration}
+              onChangeText={setDuration}
+              placeholder="1h, 1h30, 2h..."
+              placeholderTextColor="#666666"
             />
           </View>
 
