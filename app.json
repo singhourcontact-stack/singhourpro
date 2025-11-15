@@ -48,7 +48,7 @@
       "stripeSecretKey": "",
       "googleCalendarClientId": "",
       "googleCalendarEnvironment": "production",
-      "googleCalendarBackendUrl": ""
+      "googleCalendarBackendUrl": "https://backend-beryl-eta-52.vercel.app"
     },
     "runtimeVersion": "1.0.0",
     "updates": {
