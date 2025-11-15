@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { validateBookingSlot } from '@/utils/blockingUtils';
+import { sendBookingNotification } from '@/services/notificationService';
 
 export interface CreateBookingData {
   client_id: string;
@@ -82,6 +83,20 @@ export async function createBooking(bookingData: CreateBookingData): Promise<Boo
       throw error;
     }
 
+    // Send push notification to professional (async, don't block booking creation)
+    if (data) {
+      sendBookingNotificationAsync(
+        bookingData.professional_id,
+        bookingData.client_id,
+        bookingData.offer_id,
+        bookingData.date,
+        bookingData.time
+      ).catch((err) => {
+        console.error('Error sending booking notification:', err);
+        // Don't fail booking creation if notification fails
+      });
+    }
+
     return {
       success: true,
       booking: data
@@ -92,6 +107,67 @@ export async function createBooking(bookingData: CreateBookingData): Promise<Boo
       success: false,
       error: 'Erreur lors de la création du rendez-vous'
     };
+  }
+}
+
+/**
+ * Helper function to send booking notification (async)
+ */
+async function sendBookingNotificationAsync(
+  professionalId: string,
+  clientId: string,
+  offerId: string,
+  bookingDate: string,
+  bookingTime: string
+): Promise<void> {
+  try {
+    // Fetch client name
+    const { data: clientProfile } = await supabase
+      .from('profiles')
+      .select('prenom, nom')
+      .eq('id', clientId)
+      .single();
+
+    const clientName = clientProfile
+      ? `${clientProfile.prenom || ''} ${clientProfile.nom || ''}`.trim() || 'Un client'
+      : 'Un client';
+
+    // Fetch service title - try services table first (with service_id), then offers table
+    let serviceTitle = 'un service';
+
+    // Try to get service from services table (checking if offer_id references services)
+    const { data: service } = await supabase
+      .from('services')
+      .select('titre')
+      .eq('id', offerId)
+      .single();
+
+    if (service?.titre) {
+      serviceTitle = service.titre;
+    } else {
+      // Fallback: try offers table
+      const { data: offer } = await supabase
+        .from('offers')
+        .select('title')
+        .eq('id', offerId)
+        .single();
+
+      if (offer?.title) {
+        serviceTitle = offer.title;
+      }
+    }
+
+    // Send notification
+    await sendBookingNotification(
+      professionalId,
+      clientName,
+      serviceTitle,
+      bookingDate,
+      bookingTime
+    );
+  } catch (error) {
+    console.error('Error in sendBookingNotificationAsync:', error);
+    // Swallow error - notification failure shouldn't break booking creation
   }
 }
 

@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useFrameworkReady } from "@/hooks/useFrameworkReady";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
 import type { ToastConfig } from "react-native-toast-message";
 import { View, Text, Platform, StyleSheet } from "react-native";
 import Toast from "react-native-toast-message"; // Import fixe
@@ -82,19 +83,27 @@ const styles = StyleSheet.create({
   },
 });
 
+// Notification provider component
+function NotificationProvider({ children }: { children: React.ReactNode }) {
+  useNotifications();
+  return <>{children}</>;
+}
+
 export default function RootLayout() {
   useFrameworkReady();
 
   return (
     <AuthProvider>
-      {/* Navigation root */}
-      <Stack screenOptions={{ headerShown: false }} />
+      <NotificationProvider>
+        {/* Navigation root */}
+        <Stack screenOptions={{ headerShown: false }} />
 
-      {/* Overlays */}
-      <>
-        <Toast config={toastConfig} />
-        {Platform.OS !== "web" && <StatusBar style="light" />}
-      </>
+        {/* Overlays */}
+        <>
+          <Toast config={toastConfig} />
+          {Platform.OS !== "web" && <StatusBar style="light" />}
+        </>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

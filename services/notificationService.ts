@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { Alert } from 'react-native';
+import { getActivePushTokens } from './pushNotificationService';
+import Constants from 'expo-constants';
 
 export interface NotificationSettings {
   id?: string;
@@ -155,7 +157,42 @@ export async function createNotification(
 }
 
 /**
- * Send booking notification to professional
+ * Send push notification via Expo Push Notification service
+ */
+async function sendPushNotification(
+  pushToken: string,
+  title: string,
+  body: string,
+  data?: any
+): Promise<boolean> {
+  try {
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Accept-Encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: pushToken,
+        sound: 'default',
+        title,
+        body,
+        data,
+        priority: 'high',
+      }),
+    });
+
+    const result = await response.json();
+    return result.data?.status === 'ok';
+  } catch (error) {
+    console.error('Error sending push notification:', error);
+    return false;
+  }
+}
+
+/**
+ * Send booking notification to professional (database + push)
  */
 export async function sendBookingNotification(
   professionalId: string,
@@ -168,25 +205,44 @@ export async function sendBookingNotification(
     const title = 'Nouvelle réservation';
     const message = `${clientName} a réservé "${serviceTitle}" le ${bookingDate} à ${bookingTime}`;
 
-    const success = await createNotification(
+    const notificationData = {
+      clientName,
+      serviceTitle,
+      bookingDate,
+      bookingTime,
+      type: 'booking',
+    };
+
+    // 1. Save to database
+    const dbSuccess = await createNotification(
       professionalId,
       'booking',
       title,
       message,
-      {
-        clientName,
-        serviceTitle,
-        bookingDate,
-        bookingTime,
-      }
+      notificationData
     );
 
-    if (success) {
-      // Also show local alert for immediate feedback
-      Alert.alert(title, message);
+    if (!dbSuccess) {
+      console.error('Failed to save notification to database');
     }
 
-    return success;
+    // 2. Check notification settings
+    const settings = await getNotificationSettings(professionalId);
+    if (settings && !settings.push_notifications) {
+      // User has disabled push notifications
+      return dbSuccess;
+    }
+
+    // 3. Send push notification to all active devices
+    const pushTokens = await getActivePushTokens(professionalId);
+    if (pushTokens.length > 0) {
+      const pushPromises = pushTokens.map(token =>
+        sendPushNotification(token, title, message, notificationData)
+      );
+      await Promise.all(pushPromises);
+    }
+
+    return dbSuccess;
   } catch (error) {
     console.error('Error sending booking notification:', error);
     return false;

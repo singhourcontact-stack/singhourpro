@@ -288,9 +288,102 @@ export async function createReservation(reservationData: any): Promise<DataResul
       return { success: false, error: error.message };
     }
 
+    // Send push notification to professional (async, don't block reservation creation)
+    if (data) {
+      const professionalId = data.pro_id || data.professional_id;
+      const clientId = data.client_id;
+      const serviceId = data.service_id || data.offer_id;
+      const bookingDate = data.date;
+      const bookingTime = data.heure || data.time;
+
+      if (professionalId && clientId && bookingDate && bookingTime) {
+        // Import dynamically to avoid circular dependency issues
+        import('@/services/notificationService')
+          .then(({ sendBookingNotification }) => {
+            return sendBookingNotificationAsync(
+              professionalId,
+              clientId,
+              serviceId,
+              bookingDate,
+              bookingTime
+            );
+          })
+          .catch((err) => {
+            console.error('Error sending booking notification:', err);
+            // Don't fail reservation creation if notification fails
+          });
+      }
+    }
+
     return { success: true, data };
   } catch (error: any) {
     return { success: false, error: error.message || 'Erreur lors de la création de la réservation' };
+  }
+}
+
+/**
+ * Helper function to send booking notification (async)
+ */
+async function sendBookingNotificationAsync(
+  professionalId: string,
+  clientId: string,
+  serviceId: string | undefined,
+  bookingDate: string,
+  bookingTime: string
+): Promise<void> {
+  try {
+    const { supabase } = await import('@/lib/supabase');
+    const { sendBookingNotification } = await import('@/services/notificationService');
+
+    // Fetch client name
+    const { data: clientProfile } = await supabase
+      .from('profiles')
+      .select('prenom, nom')
+      .eq('id', clientId)
+      .single();
+
+    const clientName = clientProfile
+      ? `${clientProfile.prenom || ''} ${clientProfile.nom || ''}`.trim() || 'Un client'
+      : 'Un client';
+
+    // Fetch service title - try services table first, then offers table
+    let serviceTitle = 'un service';
+
+    if (serviceId) {
+      // Try to get service from services table
+      const { data: service } = await supabase
+        .from('services')
+        .select('titre')
+        .eq('id', serviceId)
+        .single();
+
+      if (service?.titre) {
+        serviceTitle = service.titre;
+      } else {
+        // Fallback: try offers table
+        const { data: offer } = await supabase
+          .from('offers')
+          .select('title')
+          .eq('id', serviceId)
+          .single();
+
+        if (offer?.title) {
+          serviceTitle = offer.title;
+        }
+      }
+    }
+
+    // Send notification
+    await sendBookingNotification(
+      professionalId,
+      clientName,
+      serviceTitle,
+      bookingDate,
+      bookingTime
+    );
+  } catch (error) {
+    console.error('Error in sendBookingNotificationAsync:', error);
+    // Swallow error - notification failure shouldn't break reservation creation
   }
 }
 
