@@ -96,19 +96,22 @@ export default function BookingsScreen() {
           text: 'Accepter',
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('reservations')
-                .update({ status: 'confirmed' })
-                .eq('id', bookingId);
+              const result = await updateBookingStatus(bookingId, 'confirmed');
 
-              if (error) throw error;
-
-              setBookings(bookings.map((b) =>
-                b.id === bookingId ? { ...b, status: 'confirmed' } : b
-              ));
-              Alert.alert('Succès', 'Réservation acceptée');
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible d’accepter la réservation');
+              if (result.success && result.booking) {
+                // Update local state with the updated booking from database
+                setBookings(bookings.map((b) =>
+                  b.id === bookingId ? { ...b, status: 'confirmed', isNew: false } : b
+                ));
+                Alert.alert('Succès', 'Réservation acceptée');
+                // Reload bookings to ensure consistency with database
+                await loadBookings();
+              } else {
+                throw new Error(result.error || 'Erreur inconnue');
+              }
+            } catch (error: any) {
+              console.error('Error accepting booking:', error);
+              Alert.alert('Erreur', error.message || 'Impossible d\'accepter la réservation');
             }
           },
         },
@@ -127,19 +130,22 @@ export default function BookingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { error } = await supabase
-                .from('reservations')
-                .update({ status: 'refused' })
-                .eq('id', bookingId);
+              const result = await updateBookingStatus(bookingId, 'refused');
 
-              if (error) throw error;
-
-              setBookings(bookings.map((b) =>
-                b.id === bookingId ? { ...b, status: 'refused' } : b
-              ));
-              Alert.alert('Succès', 'Réservation refusée');
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de refuser la réservation');
+              if (result.success && result.booking) {
+                // Update local state with the updated booking from database
+                setBookings(bookings.map((b) =>
+                  b.id === bookingId ? { ...b, status: 'refused', isNew: false } : b
+                ));
+                Alert.alert('Succès', 'Réservation refusée');
+                // Reload bookings to ensure consistency with database
+                await loadBookings();
+              } else {
+                throw new Error(result.error || 'Erreur inconnue');
+              }
+            } catch (error: any) {
+              console.error('Error refusing booking:', error);
+              Alert.alert('Erreur', error.message || 'Impossible de refuser la réservation');
             }
           },
         },
@@ -156,6 +162,15 @@ export default function BookingsScreen() {
     if (filter === 'refused') return b.status === 'refused';
     return true;
   });
+
+  // Group bookings by status for visual display (when filter is 'all')
+  const groupedBookings = filter === 'all' ? {
+    new: bookings.filter(b => b.isNew),
+    pending: bookings.filter(b => b.status === 'pending' && !b.isNew),
+    confirmed: bookings.filter(b => b.status === 'confirmed'),
+    upcoming: bookings.filter(b => b.isUpcoming && b.status === 'confirmed'),
+    refused: bookings.filter(b => b.status === 'refused'),
+  } : null;
 
   const getStatusCount = (status: string) => {
     if (status === 'all') return bookings.length;
@@ -240,7 +255,101 @@ export default function BookingsScreen() {
             <Text style={styles.noBookingsText}>
               Aucune réservation dans cette catégorie
             </Text>
+          ) : filter === 'all' && groupedBookings ? (
+            // Grouped display when showing all bookings
+            <View>
+              {/* Nouvelles */}
+              {groupedBookings.new.length > 0 && (
+                <View style={styles.groupSection}>
+                  <View style={styles.groupHeader}>
+                    <Text style={styles.groupTitle}>Nouvelles</Text>
+                    <Text style={styles.groupCount}>({groupedBookings.new.length})</Text>
+                  </View>
+                  {groupedBookings.new.map((b) => (
+                    <BookingRequestCard
+                      key={b.id}
+                      booking={b}
+                      onAccept={() => handleAcceptBooking(b.id)}
+                      onRefuse={() => handleRefuseBooking(b.id)}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* En attente */}
+              {groupedBookings.pending.length > 0 && (
+                <View style={styles.groupSection}>
+                  <View style={styles.groupHeader}>
+                    <Text style={styles.groupTitle}>En attente</Text>
+                    <Text style={styles.groupCount}>({groupedBookings.pending.length})</Text>
+                  </View>
+                  {groupedBookings.pending.map((b) => (
+                    <BookingRequestCard
+                      key={b.id}
+                      booking={b}
+                      onAccept={() => handleAcceptBooking(b.id)}
+                      onRefuse={() => handleRefuseBooking(b.id)}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* Confirmées */}
+              {groupedBookings.confirmed.length > 0 && (
+                <View style={styles.groupSection}>
+                  <View style={styles.groupHeader}>
+                    <Text style={styles.groupTitle}>Confirmées</Text>
+                    <Text style={styles.groupCount}>({groupedBookings.confirmed.length})</Text>
+                  </View>
+                  {groupedBookings.confirmed.map((b) => (
+                    <BookingRequestCard
+                      key={b.id}
+                      booking={b}
+                      onAccept={() => handleAcceptBooking(b.id)}
+                      onRefuse={() => handleRefuseBooking(b.id)}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* À venir (upcoming confirmed) */}
+              {groupedBookings.upcoming.length > 0 && groupedBookings.upcoming.length !== groupedBookings.confirmed.length && (
+                <View style={styles.groupSection}>
+                  <View style={styles.groupHeader}>
+                    <Text style={styles.groupTitle}>À venir</Text>
+                    <Text style={styles.groupCount}>({groupedBookings.upcoming.length})</Text>
+                  </View>
+                  {groupedBookings.upcoming.map((b) => (
+                    <BookingRequestCard
+                      key={b.id}
+                      booking={b}
+                      onAccept={() => handleAcceptBooking(b.id)}
+                      onRefuse={() => handleRefuseBooking(b.id)}
+                    />
+                  ))}
+                </View>
+              )}
+
+              {/* Refusées */}
+              {groupedBookings.refused.length > 0 && (
+                <View style={styles.groupSection}>
+                  <View style={styles.groupHeader}>
+                    <Text style={styles.groupTitle}>Refusées</Text>
+                    <Text style={styles.groupCount}>({groupedBookings.refused.length})</Text>
+                  </View>
+                  {groupedBookings.refused.map((b) => (
+                    <BookingRequestCard
+                      key={b.id}
+                      booking={b}
+                      onAccept={() => handleAcceptBooking(b.id)}
+                      onRefuse={() => handleRefuseBooking(b.id)}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
           ) : (
+            // Flat list when filtering by specific status
             filteredBookings.map((b) => (
               <BookingRequestCard
                 key={b.id}
@@ -277,4 +386,26 @@ const styles = StyleSheet.create({
   activeFilterTabText: { color: '#ffffff' },
   bookingsList: { paddingHorizontal: 20 },
   noBookingsText: { color: '#666666', textAlign: 'center', fontStyle: 'italic', padding: 40 },
+  groupSection: {
+    marginBottom: 24,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+  },
+  groupTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  groupCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666666',
+  },
 });

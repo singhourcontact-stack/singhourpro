@@ -156,16 +156,6 @@ async function exchangeCodeForToken(code: string, redirectUri: string): Promise<
   try {
     const config = getGoogleCalendarConfig();
     
-    // TODO: Replace with backend endpoint call
-    // Example:
-    // const response = await fetch('YOUR_BACKEND_URL/api/google-calendar/token', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ code, redirect_uri: redirectUri }),
-    // });
-    
-    const config = getGoogleCalendarConfig();
-    
     // Check if backend URL is configured
     if (!config.backendUrl) {
       return {
