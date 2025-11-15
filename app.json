@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "singhours",
     "userInterfaceStyle": "automatic",
     "sdkVersion": "54.0.0",
     "newArchEnabled": true,
@@ -40,7 +40,12 @@
         "projectId": "117ea4e8-390c-4b86-ba3d-607af9313482"
       },
       "supabaseUrl": "https://xpuqugchktpwpxtlwsgb.supabase.co",
-      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwdXF1Z2Noa3Rwd3B4dGx3c2diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyNTA5OTksImV4cCI6MjA3MzgyNjk5OX0.ty6jV0FhcnzZeot3TiifMq1fZhnRB3N2PlFL6vWVH9U"
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhwdXF1Z2Noa3Rwd3B4dGx3c2diIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgyNTA5OTksImV4cCI6MjA3MzgyNjk5OX0.ty6jV0FhcnzZeot3TiifMq1fZhnRB3N2PlFL6vWVH9U",
+      "paypalClientId": "",
+      "paypalSecret": "",
+      "paypalEnvironment": "sandbox",
+      "stripePublishableKey": "",
+      "stripeSecretKey": ""
     },
     "runtimeVersion": "1.0.0",
     "updates": {

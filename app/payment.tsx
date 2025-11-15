@@ -66,15 +66,45 @@ export default function PaymentScreen() {
     fetchPaymentInfos();
   }, [user]);
 
-  // Connecter PayPal
-  const handleConnectPayPal = async () => {
-    if (!user || !paypalEmail) {
+  // Connecter PayPal via OAuth (recommandé) ou email
+  const handleConnectPayPal = async (useOAuth: boolean = true) => {
+    if (!user) {
+      Alert.alert("Erreur", "Vous devez être connecté.");
+      return;
+    }
+
+    // Option avec OAuth (recommandé)
+    if (useOAuth) {
+      setConnectingPayPal(true);
+      try {
+        const result = await connectPayPalAccount(user.id);
+        
+        if (result.success) {
+          // Récupérer l'email depuis la base de données après connexion
+          const paymentInfo = await getPaymentInfo(user.id);
+          if (paymentInfo?.paypal_email) {
+            setPaypalEmail(paymentInfo.paypal_email);
+          }
+          setPaypalConnected(true);
+          Alert.alert("Succès", "Compte PayPal connecté avec succès !");
+        } else {
+          Alert.alert("Erreur", result.error || "Impossible de connecter le compte PayPal.");
+        }
+      } catch (error) {
+        Alert.alert("Erreur", "Une erreur est survenue lors de la connexion.");
+      } finally {
+        setConnectingPayPal(false);
+      }
+      return;
+    }
+
+    // Option avec email (fallback)
+    if (!paypalEmail) {
       Alert.alert("Erreur", "Veuillez saisir votre email PayPal.");
       return;
     }
 
     setConnectingPayPal(true);
-    
     try {
       const result = await connectPayPalAccount(user.id, paypalEmail);
       
@@ -229,17 +259,28 @@ export default function PaymentScreen() {
                   <Text style={styles.disconnectButtonText}>Déconnecter</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity
-                  style={[styles.connectButton, connectingPayPal && styles.connectButtonDisabled]}
-                  onPress={handleConnectPayPal}
-                  disabled={connectingPayPal || !paypalEmail}
-                >
-                  {connectingPayPal ? (
-                    <ActivityIndicator color="#ffffff" size="small" />
-                  ) : (
-                    <Text style={styles.connectButtonText}>Connecter</Text>
+                <>
+                  <TouchableOpacity
+                    style={[styles.connectButton, connectingPayPal && styles.connectButtonDisabled]}
+                    onPress={() => handleConnectPayPal(true)}
+                    disabled={connectingPayPal}
+                  >
+                    {connectingPayPal ? (
+                      <ActivityIndicator color="#ffffff" size="small" />
+                    ) : (
+                      <Text style={styles.connectButtonText}>Connecter (OAuth)</Text>
+                    )}
+                  </TouchableOpacity>
+                  {paypalEmail && (
+                    <TouchableOpacity
+                      style={[styles.connectButton, { backgroundColor: '#666666', marginLeft: 8 }]}
+                      onPress={() => handleConnectPayPal(false)}
+                      disabled={connectingPayPal}
+                    >
+                      <Text style={styles.connectButtonText}>Avec email</Text>
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                </>
               )}
             </View>
             {paypalConnected && (
