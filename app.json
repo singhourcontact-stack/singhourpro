@@ -45,7 +45,9 @@
       "paypalSecret": "",
       "paypalEnvironment": "sandbox",
       "stripePublishableKey": "",
-      "stripeSecretKey": ""
+      "stripeSecretKey": "",
+      "googleCalendarClientId": "",
+      "googleCalendarEnvironment": "production"
     },
     "runtimeVersion": "1.0.0",
     "updates": {

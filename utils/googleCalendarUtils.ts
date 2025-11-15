@@ -179,8 +179,8 @@ export async function syncGoogleCalendarEvents(
 
 /**
  * Get Google Calendar events for a date range
- * This would typically call Google Calendar API
- * For now, returns mock data for demonstration
+ * Uses real Google Calendar API
+ * @param professionalId - Professional's user ID (for authentication)
  * @param calendarId - Google Calendar ID
  * @param startDate - Start date (YYYY-MM-DD)
  * @param endDate - End date (YYYY-MM-DD)
@@ -189,39 +189,36 @@ export async function syncGoogleCalendarEvents(
 export async function fetchGoogleCalendarEvents(
   calendarId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  professionalId?: string
 ): Promise<GoogleCalendarEvent[]> {
-  // TODO: Implement actual Google Calendar API integration
-  // This would require:
-  // 1. Google Calendar API credentials
-  // 2. OAuth2 authentication
-  // 3. API calls to fetch events
+  // Import the service dynamically to avoid circular dependencies
+  const googleCalendarService = await import('@/services/googleCalendarService');
   
-  // For now, return mock data
-  return [
-    {
-      id: 'mock-event-1',
-      summary: 'Meeting with client',
-      start: {
-        dateTime: `${startDate}T14:00:00+01:00`
-      },
-      end: {
-        dateTime: `${startDate}T15:00:00+01:00`
-      },
-      allDay: false
-    },
-    {
-      id: 'mock-event-2',
-      summary: 'Personal appointment',
-      start: {
-        dateTime: `${startDate}T10:00:00+01:00`
-      },
-      end: {
-        dateTime: `${startDate}T11:30:00+01:00`
-      },
-      allDay: false
+  if (!professionalId) {
+    console.error('Professional ID is required for Google Calendar API calls');
+    return [];
+  }
+
+  try {
+    const result = await googleCalendarService.fetchGoogleCalendarEvents(professionalId, calendarId, startDate, endDate);
+    
+    if (result.success && result.events) {
+      return result.events.map(event => ({
+        id: event.id,
+        summary: event.summary,
+        start: event.start,
+        end: event.end,
+        allDay: event.allDay || !!event.start.date,
+      }));
     }
-  ];
+    
+    console.error('Error fetching Google Calendar events:', result.error);
+    return [];
+  } catch (error) {
+    console.error('Error in fetchGoogleCalendarEvents:', error);
+    return [];
+  }
 }
 
 /**

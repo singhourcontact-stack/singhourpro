@@ -9,6 +9,12 @@ import {
   fetchGoogleCalendarEvents,
   syncGoogleCalendarEvents
 } from '@/utils/googleCalendarUtils';
+import {
+  authenticateGoogleCalendar,
+  getGoogleCalendarList,
+  isGoogleCalendarAuthenticated,
+  clearGoogleCalendarTokens
+} from '@/services/googleCalendarService';
 import { GoogleCalendarSyncSettings } from '@/utils/googleCalendarUtils';
 
 interface GoogleCalendarSyncProps {
@@ -97,25 +103,44 @@ export const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
     try {
       setLoading(true);
       
-      // In a real implementation, this would:
-      // 1. Open Google OAuth flow
-      // 2. Get user's calendar list
-      // 3. Let user select which calendar to sync
+      // Step 1: Authenticate with Google Calendar via OAuth
+      const authResult = await authenticateGoogleCalendar(user.id);
       
-      // For demo purposes, use a mock calendar ID
-      const mockCalendarId = 'primary';
-      const success = await initializeGoogleCalendarSync(user.id, mockCalendarId);
+      if (!authResult.success) {
+        Alert.alert('Erreur', authResult.error || 'Impossible de se connecter à Google Calendar');
+        return;
+      }
+
+      // Step 2: Get user's calendar list
+      const calendarListResult = await getGoogleCalendarList(user.id);
+      
+      if (!calendarListResult.success || !calendarListResult.calendars || calendarListResult.calendars.length === 0) {
+        Alert.alert('Erreur', calendarListResult.error || 'Impossible de récupérer la liste des calendriers');
+        return;
+      }
+
+      // Step 3: Use primary calendar or first calendar
+      const primaryCalendar = calendarListResult.calendars.find(cal => cal.primary) || calendarListResult.calendars[0];
+      
+      if (!primaryCalendar) {
+        Alert.alert('Erreur', 'Aucun calendrier disponible');
+        return;
+      }
+
+      // Step 4: Initialize sync with selected calendar
+      const success = await initializeGoogleCalendarSync(user.id, primaryCalendar.id);
       
       if (success) {
         Alert.alert(
           'Configuration réussie',
-          'Synchronisation Google Calendar activée. Vous pouvez maintenant synchroniser vos événements.',
+          `Calendrier "${primaryCalendar.summary}" connecté avec succès. Vous pouvez maintenant synchroniser vos événements.`,
           [{ text: 'OK', onPress: loadSettings }]
         );
       } else {
         Alert.alert('Erreur', 'Impossible de configurer la synchronisation');
       }
     } catch (error) {
+      console.error('Error setting up Google Calendar:', error);
       Alert.alert('Erreur', 'Une erreur est survenue lors de la configuration');
     } finally {
       setLoading(false);
@@ -135,7 +160,8 @@ export const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
       const events = await fetchGoogleCalendarEvents(
         settings.google_calendar_id,
         today,
-        today
+        today,
+        user.id // Pass professional ID for authentication
       );
       
       // Sync events as blocked slots
@@ -241,6 +267,32 @@ export const GoogleCalendarSync: React.FC<GoogleCalendarSyncProps> = ({
                 <Text style={styles.syncButtonText}>
                   {syncing ? 'Synchronisation...' : 'Synchroniser maintenant'}
                 </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.disconnectButton}
+                onPress={async () => {
+                  Alert.alert(
+                    'Déconnecter Google Calendar',
+                    'Êtes-vous sûr de vouloir déconnecter votre calendrier Google ?',
+                    [
+                      { text: 'Annuler', style: 'cancel' },
+                      {
+                        text: 'Déconnecter',
+                        style: 'destructive',
+                        onPress: async () => {
+                          if (user?.id) {
+                            await clearGoogleCalendarTokens(user.id);
+                            setSettings(null);
+                            Alert.alert('Succès', 'Google Calendar déconnecté');
+                          }
+                        },
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.disconnectButtonText}>Déconnecter Google Calendar</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -380,5 +432,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  disconnectButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ff3b3b',
+    alignItems: 'center',
+  },
+  disconnectButtonText: {
+    color: '#ff3b3b',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
